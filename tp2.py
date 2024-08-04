@@ -20,7 +20,7 @@ def check_certificate_expiry(hostnames):
             current_date = datetime.now()
             days_until_expiry = (expiry_date - current_date).days
             
-            if days_until_expiry < 30:
+            if days_until_expiry < 25:
                 results.append((hostname, days_until_expiry, True))
             else:
                 results.append((hostname, days_until_expiry, False))
