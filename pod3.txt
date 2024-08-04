@@ -1,0 +1,6 @@
+qualysguard.qg3.apps.qualys.com
+qualysapi.qg3.apps.qualys.com
+qgadmin.qg3.apps.qualys.com
+portal-bo.qg3.apps.qualys.com
+scanservice1.qg3.apps.qualys.com
+
