@@ -2,55 +2,118 @@ import ssl
 import socket
 from datetime import datetime
 import streamlit as st
+import pandas as pd
 
-def get_certificate_expiry_date(hostname):
+
+def get_certificate_details(hostname):
     context = ssl.create_default_context()
     with socket.create_connection((hostname, 443)) as sock:
         with context.wrap_socket(sock, server_hostname=hostname) as ssock:
             certificate = ssock.getpeercert()
             expiry_date_str = certificate['notAfter']
-            expiry_date = datetime.strptime(expiry_date_str, '%b %d %H:%M:%S %Y %Z')
-            return expiry_date
+            expiry_date = datetime.strptime(
+                expiry_date_str, '%b %d %H:%M:%S %Y %Z')
+            issuer = dict(x[0] for x in certificate['issuer'])
+            issuer_name = issuer.get('organizationName', 'Unknown Issuer')
+            return expiry_date, issuer_name
+
 
 def check_certificate_expiry(hostnames):
     results = []
     for hostname in hostnames:
         try:
-            expiry_date = get_certificate_expiry_date(hostname)
+            expiry_date, issuer_name = get_certificate_details(hostname)
             current_date = datetime.now()
             days_until_expiry = (expiry_date - current_date).days
-            
-            if days_until_expiry < 25:
-                results.append((hostname, days_until_expiry, True))
+            percentage_expired = max(0, 100 - days_until_expiry * 100 / 365)
+
+            if days_until_expiry < 30:
+                status = "⚠️ Expiring Soon"
             else:
-                results.append((hostname, days_until_expiry, False))
+                status = "✅ Valid"
+
+            results.append({
+                "Hostname": hostname,
+                "Expiry Date": expiry_date.strftime('%Y-%m-%d'),
+                "Issuer": issuer_name,
+                "Days Until Expiry": days_until_expiry,
+                "Status": status,
+                "Progress": percentage_expired,
+            })
         except Exception as e:
-            results.append((hostname, str(e), None))
+            results.append({
+                "Hostname": hostname,
+                "Expiry Date": "N/A",
+                "Issuer": "N/A",
+                "Days Until Expiry": "N/A",
+                "Status": f"❌ Error: {str(e)}",
+                "Progress": 0,
+            })
     return results
 
+
+def load_urls_from_file(filename):
+    try:
+        with open(filename, 'r') as file:
+            urls = file.read().strip().split("\n")
+        return urls
+    except Exception as e:
+        st.error(f"Error loading {filename}: {str(e)}")
+        return []
+
 # Streamlit application
+
+
 def main():
     st.set_page_config(page_title="SSL Checker", page_icon="🔒")
     st.title("🔒 SSL Certificate Expiry Checker")
-    st.markdown("Check if your website's SSL certificate is about to expire. Stay secure by renewing certificates on time!")
+    st.markdown(
+        "Check if your website's SSL certificate is about to expire. Stay secure by renewing certificates on time!"
+    )
 
     with st.expander("ℹ️ Instructions"):
-        st.write("Enter the hostnames of the websites you want to check, one per line. Click 'Check Expiry' to see the results.")
+        st.write("Press the button for the desired pod to check the SSL certificate expiry dates of the URLs in the corresponding text file.")
 
-    hostnames_input = st.text_area("Enter hostnames (one per line):", "google.com\nredbus.com\nfacebook.com")
-
-    if st.button("Check Expiry"):
-        hostnames = hostnames_input.strip().split("\n")
+    # Buttons for each pod
+    if st.button("Check US1"):
+        hostnames = load_urls_from_file("pod1.txt")
         results = check_certificate_expiry(hostnames)
+        display_results(results)
 
-        st.subheader("Results")
-        for hostname, days_until_expiry, is_expiring_soon in results:
-            if is_expiring_soon is None:
-                st.error(f"❌ Error checking {hostname}: {days_until_expiry}")
-            elif is_expiring_soon:
-                st.warning(f"⚠️ Alert: The SSL certificate for {hostname} is going to expire in {days_until_expiry} days.")
-            else:
-                st.success(f"✅ The SSL certificate for {hostname} is valid for {days_until_expiry} more days.")
+    if st.button("Check US2"):
+        hostnames = load_urls_from_file("pod2.txt")
+        results = check_certificate_expiry(hostnames)
+        display_results(results)
+
+    if st.button("Check US3"):
+        hostnames = load_urls_from_file("pod3.txt")
+        results = check_certificate_expiry(hostnames)
+        display_results(results)
+
+    if st.button("Check US4"):
+        hostnames = load_urls_from_file("pod4.txt")
+        results = check_certificate_expiry(hostnames)
+        display_results(results)
+
+
+def display_results(results):
+    st.subheader("Results")
+
+    # Convert results to DataFrame
+    df = pd.DataFrame(results)
+
+    # Display as DataFrame with progress bars
+    st.dataframe(df.style.applymap(
+        lambda val: "color: red;" if val == "⚠️ Expiring Soon" else "color: green;",
+        subset=["Status"]
+    ).bar(subset=["Progress"], color=["#d65f5f", "#5fba7d"], vmin=0, vmax=100))
+
+    # Interactive chart showing distribution of expiry dates
+    if not df.empty:
+        df['Expiry Date'] = pd.to_datetime(df['Expiry Date'], errors='coerce')
+        st.subheader("Expiry Date Distribution")
+        st.line_chart(df.set_index('Expiry Date')['Days Until Expiry'])
+
 
 if __name__ == "__main__":
     main()
