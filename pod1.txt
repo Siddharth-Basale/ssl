@@ -1,6 +1,2 @@
-qualysguard.qualys.com
-qualysapi.qualys.com
-dist01.sjdc01.qualys.com
-nochost.sjdc01.qualys.com
-portal.qualys.com
+
 facebook.com
