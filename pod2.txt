@@ -1,5 +1,1 @@
-qualysguard.qg2.apps.qualys.com
-qualysapi.qg2.apps.qualys.com
-qgadmin.qg2.apps.qualys.com
-scanservice1.qg2.apps.qualys.com
 
